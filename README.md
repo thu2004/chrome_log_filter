@@ -6,7 +6,8 @@ A Chrome extension that helps filter and highlight log messages on webpages.
 
 1. **DEBUG Log Toggle**
    - Toggle visibility of DEBUG logs
-   - Automatically toggles when opening the popup
+   - Optional auto-toggle when opening the popup (disabled by default)
+   - Configure auto-toggle behavior in settings
 
 2. **Special Text Highlighting**
    - Lines containing "ERROR" are highlighted in red text (except "NO_ERROR")

@@ -27,10 +27,20 @@ A Chrome extension that helps filter and highlight log messages on webpages.
 
 ## Installation
 
+### Chrome
 1. Clone this repository or download the files
 2. Open Chrome and go to `chrome://extensions/`
 3. Enable "Developer mode" in the top right
 4. Click "Load unpacked" and select the extension directory
+
+### Firefox
+1. Clone this repository or download the files
+2. Rename `manifest-firefox.json` to `manifest.json` (replace the existing file)
+3. Open Firefox and go to `about:debugging#/runtime/this-firefox`
+4. Click "Load Temporary Add-on"
+5. Select any file in the extension directory
+
+Note: For permanent installation in Firefox, the extension needs to be signed by Mozilla.
 
 ## Usage
 

@@ -1,92 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <style>
-    body {
-      width: 250px;
-      padding: 10px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    }
-    .filter-option {
-      margin: 8px 0;
-      display: flex;
-      align-items: center;
-    }
-    .filter-option input[type="checkbox"] {
-      margin-right: 8px;
-    }
-    .separator {
-      height: 1px;
-      background: #ccc;
-      margin: 10px 0;
-    }
-    .theme-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 12px;
-    }
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 40px;
-      height: 20px;
-    }
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 20px;
-    }
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 16px;
-      width: 16px;
-      left: 2px;
-      bottom: 2px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    input:checked + .slider {
-      background-color: #2196F3;
-    }
-    input:checked + .slider:before {
-      transform: translateX(20px);
-    }
-    .pattern-input {
-      margin: 8px 0;
-    }
-    .pattern-input input {
-      width: 100%;
-      padding: 4px;
-      margin-top: 4px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    .pattern-input label {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 0.9em;
-      color: #666;
-    }
-    .info-text {
-      font-size: 0.8em;
-      color: #999;
-      margin-top: 4px;
-    }
-  </style>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <h3>Log Filter Options</h3>
@@ -96,7 +11,7 @@
   </div>
   <div class="separator"></div>
   <div class="pattern-input">
-    <label for="highlightPattern">Highlight Pattern:</label>
+    <label for="highlightPattern">Highlight lines containing:</label>
     <input type="text" id="highlightPattern" placeholder="------------------------ live log">
     <div class="info-text">Note: ERROR logs are always highlighted in red</div>
   </div>
@@ -105,7 +20,7 @@
     <label for="excludePatterns">Exclude patterns (comma-separated):</label>
   </div>
   <div class="filter-option">
-    <input type="text" id="excludePatterns" style="width: 100%; padding: 4px;" placeholder="e.g. [comm_libs,pattern2">
+    <input type="text" id="excludePatterns" placeholder="e.g. [comm_libs,pattern2">
   </div>
   <div class="separator"></div>
   <div class="filter-option">
@@ -120,6 +35,7 @@
       <span class="slider"></span>
     </label>
   </div>
+  <script src="browser-polyfill.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

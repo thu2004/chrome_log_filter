@@ -167,7 +167,7 @@ function applyLogFilters(showDebug, darkMode, highlightPattern = DEFAULT_HIGHLIG
 }
 
 // Listen for messages from popup
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+browserAPI.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   console.debug('[LogFilter] Received message from popup:', request);
   applyLogFilters(
     request.showDebug,
@@ -175,25 +175,30 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     request.highlightPattern || DEFAULT_HIGHLIGHT_PATTERN,
     request.excludePatterns || DEFAULT_EXCLUDE_PATTERNS
   );
-  sendResponse({success: true}); // Acknowledge receipt
-  return true; // Keep the message channel open for the async response
+  sendResponse({ success: true }); // Acknowledge receipt
+  return true; // Keep the message channel open for async response
 });
-
-// Initialize when the content script loads
-console.debug('[LogFilter] Content script initialized');
-addStyles(true); // Start with dark mode
-initializeLogContainers();
 
 // Initial filter application
 console.debug('[LogFilter] Loading initial filter settings');
-chrome.storage.local.get(['showDebug', 'darkMode', 'highlightPattern', 'excludePatterns'], function(result) {
-  console.debug('[LogFilter] Initial settings loaded:', result);
-  // Default to dark mode if not set
-  const darkMode = result.darkMode === undefined ? true : result.darkMode;
-  applyLogFilters(
-    result.showDebug !== false,
-    darkMode,
-    result.highlightPattern || DEFAULT_HIGHLIGHT_PATTERN,
-    result.excludePatterns || DEFAULT_EXCLUDE_PATTERNS
-  );
-});
+try {
+  browserAPI.storage.local.get(['showDebug', 'darkMode', 'highlightPattern', 'excludePatterns'], function(result) {
+    console.debug('[LogFilter] Initial settings loaded:', result);
+    // Default to dark mode if not set
+    const darkMode = result.darkMode === undefined ? true : result.darkMode;
+    applyLogFilters(
+      result.showDebug !== false,
+      darkMode,
+      result.highlightPattern || DEFAULT_HIGHLIGHT_PATTERN,
+      result.excludePatterns || DEFAULT_EXCLUDE_PATTERNS
+    );
+  });
+} catch (error) {
+  console.debug('[LogFilter] Error loading initial settings:', error);
+  // Apply default settings if storage access fails
+  applyLogFilters(true, true, DEFAULT_HIGHLIGHT_PATTERN, DEFAULT_EXCLUDE_PATTERNS);
+}
+
+// Initialize when the content script loads
+console.debug('[LogFilter] Content script initialized');
+initializeLogContainers();

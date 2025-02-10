@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Load saved states
   console.debug('[LogFilter] Loading saved filter states');
-  chrome.storage.local.get(['showDebug', 'darkMode', 'highlightPattern', 'excludePatterns', 'autoToggleDebug'], function(result) {
+  browserAPI.storage.local.get(['showDebug', 'darkMode', 'highlightPattern', 'excludePatterns', 'autoToggleDebug'], function(result) {
     console.debug('[LogFilter] Loaded states:', result);
     
     // Set auto toggle debug state (default to false)
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
       excludePatterns.value = result.excludePatterns;
     } else {
       excludePatterns.value = '[comm_libs.';
-      chrome.storage.local.set({ excludePatterns: '[comm_libs.' });
+      browserAPI.storage.local.set({ excludePatterns: '[comm_libs.' });
     }
     
     console.debug('[LogFilter] Applied states - debug:', debugFilter.checked, 'darkMode:', themeToggle.checked, 
@@ -40,11 +40,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set initial dark mode if not set
     if (result.darkMode === undefined) {
-      chrome.storage.local.set({ darkMode: true });
+      browserAPI.storage.local.set({ darkMode: true });
     }
     
     // Save and apply the new debug state
-    chrome.storage.local.set({ showDebug: newDebugState }, function() {
+    browserAPI.storage.local.set({ showDebug: newDebugState }, function() {
       applyFilters();
     });
   });
@@ -52,41 +52,41 @@ document.addEventListener('DOMContentLoaded', function() {
   // Add change listeners
   debugFilter.addEventListener('change', function() {
     console.debug('[LogFilter] Debug filter changed:', debugFilter.checked);
-    chrome.storage.local.set({ showDebug: debugFilter.checked }, function() {
+    browserAPI.storage.local.set({ showDebug: debugFilter.checked }, function() {
       applyFilters();
     });
   });
 
   autoToggleDebug.addEventListener('change', function() {
     console.debug('[LogFilter] Auto toggle debug changed:', autoToggleDebug.checked);
-    chrome.storage.local.set({ autoToggleDebug: autoToggleDebug.checked });
+    browserAPI.storage.local.set({ autoToggleDebug: autoToggleDebug.checked });
   });
 
   themeToggle.addEventListener('change', function() {
     console.debug('[LogFilter] Theme changed:', themeToggle.checked);
-    chrome.storage.local.set({ darkMode: themeToggle.checked }, function() {
+    browserAPI.storage.local.set({ darkMode: themeToggle.checked }, function() {
       applyFilters();
     });
   });
 
   highlightPattern.addEventListener('input', function() {
     console.debug('[LogFilter] Pattern changed:', highlightPattern.value);
-    chrome.storage.local.set({ highlightPattern: highlightPattern.value }, function() {
+    browserAPI.storage.local.set({ highlightPattern: highlightPattern.value }, function() {
       applyFilters();
     });
   });
 
   excludePatterns.addEventListener('input', function() {
     console.debug('[LogFilter] Exclude patterns changed:', excludePatterns.value);
-    chrome.storage.local.set({ excludePatterns: excludePatterns.value }, function() {
+    browserAPI.storage.local.set({ excludePatterns: excludePatterns.value }, function() {
       applyFilters();
     });
   });
 
   function applyFilters() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    browserAPI.tabs.query({active: true, currentWindow: true}, function(tabs) {
       if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
+        browserAPI.tabs.sendMessage(tabs[0].id, {
           showDebug: debugFilter.checked,
           darkMode: themeToggle.checked,
           highlightPattern: highlightPattern.value,

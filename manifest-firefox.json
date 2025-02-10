@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "Log Filter",
+  "version": "1.0",
+  "description": "Filter log messages on webpages",
+  "permissions": ["activeTab", "storage"],
+  "browser_action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["browser-polyfill.js", "content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    "popup.css"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "log-filter@example.com",
+      "strict_min_version": "57.0"
+    }
+  }
+}

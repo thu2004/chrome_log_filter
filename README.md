@@ -1,4 +1,4 @@
-# Chrome / FirefoxLog Filter Extension
+# Chrome / Firefox Log Filter Extension
 
 A Chrome extension that helps filter and highlight log messages on webpages.
 

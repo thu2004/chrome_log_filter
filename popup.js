@@ -3,10 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const debugFilter = document.getElementById('debugFilter');
   const themeToggle = document.getElementById('themeToggle');
   const highlightPattern = document.getElementById('highlightPattern');
+  const excludePatterns = document.getElementById('excludePatterns');
 
   // Load saved states
   console.debug('[LogFilter] Loading saved filter states');
-  chrome.storage.local.get(['showDebug', 'darkMode', 'highlightPattern'], function(result) {
+  chrome.storage.local.get(['showDebug', 'darkMode', 'highlightPattern', 'excludePatterns'], function(result) {
     console.debug('[LogFilter] Loaded states:', result);
     
     // Toggle debug state
@@ -20,8 +21,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (result.highlightPattern) {
       highlightPattern.value = result.highlightPattern;
     }
+
+    // Set exclude patterns
+    if (result.excludePatterns) {
+      excludePatterns.value = result.excludePatterns;
+    } else {
+      excludePatterns.value = '[comm_libs.';
+      chrome.storage.local.set({ excludePatterns: '[comm_libs.' });
+    }
     
-    console.debug('[LogFilter] Applied states - debug:', debugFilter.checked, 'darkMode:', themeToggle.checked, 'pattern:', highlightPattern.value);
+    console.debug('[LogFilter] Applied states - debug:', debugFilter.checked, 'darkMode:', themeToggle.checked, 'pattern:', highlightPattern.value, 'excludePatterns:', excludePatterns.value);
     
     // Set initial dark mode if not set
     if (result.darkMode === undefined) {
@@ -49,40 +58,30 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Add input listener for pattern with debounce
-  let patternTimeout;
   highlightPattern.addEventListener('input', function() {
-    clearTimeout(patternTimeout);
-    patternTimeout = setTimeout(() => {
-      console.debug('[LogFilter] Pattern changed:', highlightPattern.value);
-      chrome.storage.local.set({ highlightPattern: highlightPattern.value }, function() {
-        applyFilters();
-      });
-    }, 300); // Wait 300ms after typing stops
+    console.debug('[LogFilter] Pattern changed:', highlightPattern.value);
+    chrome.storage.local.set({ highlightPattern: highlightPattern.value }, function() {
+      applyFilters();
+    });
+  });
+
+  excludePatterns.addEventListener('input', function() {
+    console.debug('[LogFilter] Exclude patterns changed:', excludePatterns.value);
+    chrome.storage.local.set({ excludePatterns: excludePatterns.value }, function() {
+      applyFilters();
+    });
   });
 
   function applyFilters() {
-    console.debug('[LogFilter] Applying filters to active tab');
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs[0]) {
-        console.debug('[LogFilter] No active tab found');
-        return;
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          showDebug: debugFilter.checked,
+          darkMode: themeToggle.checked,
+          highlightPattern: highlightPattern.value,
+          excludePatterns: excludePatterns.value
+        });
       }
-      
-      const message = {
-        showDebug: debugFilter.checked,
-        darkMode: themeToggle.checked,
-        highlightPattern: highlightPattern.value || '------------------------ live log'
-      };
-      console.debug('[LogFilter] Sending message to content script:', message);
-      
-      chrome.tabs.sendMessage(tabs[0].id, message, function(response) {
-        if (chrome.runtime.lastError) {
-          console.debug('[LogFilter] Error:', chrome.runtime.lastError);
-          return;
-        }
-        console.debug('[LogFilter] Filter application response:', response);
-      });
     });
   }
 });

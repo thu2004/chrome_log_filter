@@ -2,20 +2,24 @@
   "manifest_version": 3,
   "name": "Log Filter",
   "version": "1.0",
-  "description": "Filter log messages on webpages",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "description": "Filter and highlight log messages on webpages",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs"
+  ],
   "action": {
     "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["browser-polyfill.js", "content.js"]
+      "js": ["content.js"]
     }
   ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
-  },
   "web_accessible_resources": [{
     "resources": ["popup.css"],
     "matches": ["<all_urls>"]

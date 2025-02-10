@@ -2,10 +2,17 @@
   "manifest_version": 2,
   "name": "Log Filter",
   "version": "1.0",
-  "description": "Filter log messages on webpages",
-  "permissions": ["activeTab", "storage"],
+  "description": "Filter and highlight log messages on webpages",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs"
+  ],
   "browser_action": {
     "default_popup": "popup.html"
+  },
+  "background": {
+    "scripts": ["browser-polyfill.js", "background.js"]
   },
   "content_scripts": [
     {

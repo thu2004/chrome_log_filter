@@ -6,90 +6,75 @@ const PASS_PATTERN = 'PASS';
 const WARNING_SUMMARY_PATTERN = 'warnings summary';
 const DEFAULT_EXCLUDE_PATTERNS = '[comm_libs.';
 
-// Define log colors for both themes
-const LOG_STYLES = {
-  light: {
-    DEBUG: '#2196F3', // Blue
-    DEFAULT: '#333333', // Dark gray
-    HIGHLIGHT_BG: '#FFEB3B', // Yellow background
-    HIGHLIGHT_TEXT: '#000000', // Black text for highlighted lines
-    ERROR_TEXT: '#D32F2F', // Red text for errors
-    PASS_TEXT: '#2E7D32', // Dark green text for pass
-    WARNING_TEXT: '#ED6C02' // Orange text for warnings
+// CSS styles for log formatting
+const logStyles = {
+  timestamp: 'color: #888;',
+  id: 'color: #666; font-style: italic;',
+  debug: 'color: #6c757d;',
+  info: {
+    color: '#d4d4d4',
+    bgDark: '#2d4f4f',  // Dark teal background
+    bgLight: '#e6f3f3'  // Light teal background
   },
-  dark: {
-    DEBUG: '#5C6BC0', // Muted indigo-blue
-    DEFAULT: '#E0E0E0', // Light gray
-    HIGHLIGHT_BG: '#2C2C00', // Dark yellow background
-    HIGHLIGHT_TEXT: '#FFEB3B', // Yellow text for highlighted lines
-    ERROR_TEXT: '#FF5252', // Light red text for errors
-    PASS_TEXT: '#81C784', // Light green text for pass
-    WARNING_TEXT: '#FFB74D' // Light orange text for warnings
+  error: 'color: #dc3545; font-weight: bold;',
+  warning: 'color: #ffc107;',
+  pass: 'color: #28a745; font-weight: bold;',
+  highlight: 'color: #0dcaf0;',
+  path: 'color: #888;',
+  darkMode: {
+    background: '#1e1e1e',
+    text: '#d4d4d4',
+    debugColor: '#666666'
+  },
+  lightMode: {
+    background: '#ffffff',
+    text: '#000000',
+    debugColor: '#999999'
   }
 };
 
-// Add CSS styles to the page
-function addStyles(darkMode) {
-  // Remove existing styles if any
-  const existingStyle = document.getElementById('log-filter-styles');
-  if (existingStyle) {
-    existingStyle.remove();
+function formatTimestamp(timestamp) {
+  // Extract time components from the timestamp
+  const match = timestamp.match(/\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3})\]/);
+  if (match) {
+    return `<span style="${logStyles.timestamp}">[${match[1]}]</span>`;
   }
-
-  const colors = darkMode ? LOG_STYLES.dark : LOG_STYLES.light;
-  const style = document.createElement('style');
-  style.id = 'log-filter-styles';
-  style.textContent = `
-    .log-container {
-      background-color: ${darkMode ? '#1E1E1E' : '#FFFFFF'};
-      color: ${darkMode ? '#E0E0E0' : '#333333'};
-      padding: 10px;
-      border-radius: 4px;
-    }
-    .log-line {
-      display: block;
-      font-family: monospace;
-      padding: 1px 0;
-      white-space: pre;
-    }
-    .log-debug {
-      color: ${colors.DEBUG};
-    }
-    .log-other {
-      color: ${colors.DEFAULT};
-    }
-    .log-highlight {
-      background-color: ${colors.HIGHLIGHT_BG};
-      color: ${colors.HIGHLIGHT_TEXT};
-      font-weight: bold;
-    }
-    .log-error {
-      color: ${colors.ERROR_TEXT};
-      font-weight: bold;
-    }
-    .log-pass {
-      color: ${colors.PASS_TEXT};
-      font-weight: bold;
-    }
-    .log-warning {
-      color: ${colors.WARNING_TEXT};
-      font-weight: bold;
-    }
-  `;
-  document.head.appendChild(style);
+  return timestamp;
 }
 
-function initializeLogContainers() {
-  const logContainers = document.querySelectorAll('pre');
-  logContainers.forEach(container => {
-    if (!originalContents.has(container)) {
-      originalContents.set(container, container.textContent);
-      container.classList.add('log-container');
-    }
-  });
+function formatLogId(id) {
+  // Format the process ID and thread ID
+  const match = id.match(/\[(\d+)\]/);
+  if (match) {
+    return `<span style="${logStyles.id}">[${match[1]}]</span>`;
+  }
+  return id;
 }
 
-function formatLogLine(line, pattern, excludePatterns) {
+function formatLogLevel(level, isDarkMode) {
+  if (level.includes('[DEBUG]')) {
+    return `<span style="color: ${isDarkMode ? logStyles.darkMode.debugColor : logStyles.lightMode.debugColor}">[DEBUG]</span>`;
+  } else if (level.includes('[ERROR]')) {
+    return `<span style="${logStyles.error}">[ERROR]</span>`;
+  } else if (level.includes('[WARNING]')) {
+    return `<span style="${logStyles.warning}">[WARNING]</span>`;
+  } else if (level.includes('[INFO]')) {
+    const bgColor = isDarkMode ? logStyles.info.bgDark : logStyles.info.bgLight;
+    return `<span style="background-color: ${bgColor}; padding: 0 4px;">[INFO]</span>`;
+  }
+  return level;
+}
+
+function formatCodePath(path) {
+  // Format code paths like [cspfw.public.serial.serial_logger.SerialLogger:61]
+  const match = path.match(/\[([\w\.\:]+)\]/);
+  if (match) {
+    return `<span style="${logStyles.path}">[${match[1]}]</span>`;
+  }
+  return path;
+}
+
+function formatLogLine(line, pattern, excludePatterns, isDarkMode) {
   // Skip empty lines
   if (!line.trim()) {
     return '';
@@ -103,26 +88,88 @@ function formatLogLine(line, pattern, excludePatterns) {
     }
   }
 
-  let formattedLine = line;
+  // Split line into components
+  const parts = line.split(/(\[\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}\]|\[\d+\]|\[(?:DEBUG|ERROR|WARNING|INFO)\]|\[[\w\.\:]+\])/g);
   
-  // Highlight ERROR in red
+  let formattedLine = '';
+  let isSpecialLine = false;
+
+  // Check for special lines first
   if (line.includes(ERROR_PATTERN)) {
-    formattedLine = `<span style="color: #ff6b6b;">${line}</span>`;
-  }
-  // Highlight PASS in green
-  else if (line.includes(PASS_PATTERN)) {
-    formattedLine = `<span style="color: #51cf66;">${line}</span>`;
-  }
-  // Highlight warning summary in yellow
-  else if (line.includes(WARNING_SUMMARY_PATTERN)) {
-    formattedLine = `<span style="color: #ffd43b;">${line}</span>`;
-  }
-  // Highlight custom pattern
-  else if (pattern && line.includes(pattern)) {
-    formattedLine = `<span style="color: #4dabf7;">${line}</span>`;
+    formattedLine = `<span style="${logStyles.error}">${line}</span>`;
+    isSpecialLine = true;
+  } else if (line.includes(PASS_PATTERN)) {
+    formattedLine = `<span style="${logStyles.pass}">${line}</span>`;
+    isSpecialLine = true;
+  } else if (line.includes(WARNING_SUMMARY_PATTERN)) {
+    formattedLine = `<span style="${logStyles.warning}">${line}</span>`;
+    isSpecialLine = true;
+  } else if (pattern && line.includes(pattern)) {
+    formattedLine = `<span style="${logStyles.highlight}">${line}</span>`;
+    isSpecialLine = true;
   }
 
-  return formattedLine;
+  // If not a special line, format each component
+  if (!isSpecialLine) {
+    formattedLine = parts.map(part => {
+      if (!part) return '';
+      if (part.match(/\[\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}\]/)) {
+        return formatTimestamp(part);
+      } else if (part.match(/\[\d+\]/)) {
+        return formatLogId(part);
+      } else if (part.match(/\[(?:DEBUG|ERROR|WARNING|INFO)\]/)) {
+        return formatLogLevel(part, isDarkMode);
+      } else if (part.match(/\[[\w\.\:]+\]/)) {
+        return formatCodePath(part);
+      }
+      return part;
+    }).join('');
+  }
+  return `<div class="log-line">${formattedLine}</div>`;
+}
+
+function addStyles(darkMode) {
+  const style = document.createElement('style');
+  const theme = darkMode ? logStyles.darkMode : logStyles.lightMode;
+  
+  style.textContent = `
+    pre {
+      background-color: ${theme.background} !important;
+      color: ${theme.text} !important;
+      padding: 8px;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.2;
+      white-space: pre;
+      word-wrap: normal;
+      overflow-x: auto;
+    }
+    .log-line {
+      display: inline;
+    }
+    .log-line:hover {
+      background-color: ${darkMode ? '#2d2d2d' : '#f8f9fa'};
+    }
+  `;
+
+  // Remove any existing style
+  const existingStyle = document.querySelector('#log-filter-style');
+  if (existingStyle) {
+    existingStyle.remove();
+  }
+
+  style.id = 'log-filter-style';
+  document.head.appendChild(style);
+}
+
+function initializeLogContainers() {
+  const logContainers = document.querySelectorAll('pre');
+  logContainers.forEach(container => {
+    if (!originalContents.has(container)) {
+      originalContents.set(container, container.textContent);
+      container.classList.add('log-container');
+    }
+  });
 }
 
 function applyLogFilters(showDebug, darkMode, highlightPattern = DEFAULT_HIGHLIGHT_PATTERN, excludePatterns = DEFAULT_EXCLUDE_PATTERNS) {
@@ -142,7 +189,7 @@ function applyLogFilters(showDebug, darkMode, highlightPattern = DEFAULT_HIGHLIG
         if (!showDebug && line.includes('[DEBUG]')) {
           return '';
         }
-        return formatLogLine(line, highlightPattern, excludePatterns);
+        return formatLogLine(line, highlightPattern, excludePatterns, darkMode);
       })
       .filter(line => line !== '') // Remove empty lines
       .join('\n');

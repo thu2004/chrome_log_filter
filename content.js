@@ -90,85 +90,88 @@ function initializeLogContainers() {
 }
 
 function formatLogLine(line, pattern, excludePatterns) {
-  // Check if line should be excluded
-  const patterns = excludePatterns ? excludePatterns.split(',').map(p => p.trim()) : [DEFAULT_EXCLUDE_PATTERNS];
-  if (patterns.some(pattern => line.includes(pattern))) {
-    return null; // Return null to indicate this line should be excluded
+  // Skip empty lines
+  if (!line.trim()) {
+    return '';
   }
 
-  // Format line if not excluded
-  const isDebug = line.includes('[DEBUG]');
-  const isError = line.includes(ERROR_PATTERN) && !line.includes('NO_ERROR');
-  const isPass = line.includes(PASS_PATTERN);
-  const isWarning = line.toLowerCase().includes(WARNING_SUMMARY_PATTERN.toLowerCase());
-  const matchesPattern = pattern && line.includes(pattern);
+  // Check if line matches any exclude pattern
+  if (excludePatterns) {
+    const patterns = excludePatterns.split(',').map(p => p.trim());
+    if (patterns.some(pattern => line.includes(pattern))) {
+      return '';
+    }
+  }
 
-  let className = 'log-line';
-  if (isDebug) className += ' log-debug';
-  if (isError) className += ' log-error';
-  if (isPass) className += ' log-pass';
-  if (isWarning) className += ' log-warning';
-  if (matchesPattern) className += ' log-highlight';
+  let formattedLine = line;
+  
+  // Highlight ERROR in red
+  if (line.includes(ERROR_PATTERN)) {
+    formattedLine = `<span style="color: #ff6b6b;">${line}</span>`;
+  }
+  // Highlight PASS in green
+  else if (line.includes(PASS_PATTERN)) {
+    formattedLine = `<span style="color: #51cf66;">${line}</span>`;
+  }
+  // Highlight warning summary in yellow
+  else if (line.includes(WARNING_SUMMARY_PATTERN)) {
+    formattedLine = `<span style="color: #ffd43b;">${line}</span>`;
+  }
+  // Highlight custom pattern
+  else if (pattern && line.includes(pattern)) {
+    formattedLine = `<span style="color: #4dabf7;">${line}</span>`;
+  }
 
-  // Escape HTML special characters to prevent XSS
-  const escapedLine = line
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  return `<span class="${className}">${escapedLine}</span>`;
+  return formattedLine;
 }
 
 function applyLogFilters(showDebug, darkMode, highlightPattern = DEFAULT_HIGHLIGHT_PATTERN, excludePatterns = DEFAULT_EXCLUDE_PATTERNS) {
-  console.debug('[LogFilter] Applying filters:', { showDebug, darkMode, highlightPattern, excludePatterns });
+  console.debug('[LogFilter] Applying filters - debug:', showDebug, 'dark:', darkMode, 'pattern:', highlightPattern);
   
-  // Add styles with current theme
-  addStyles(darkMode);
-  
-  // Process each pre element
   document.querySelectorAll('pre').forEach(pre => {
-    // Get or create container
-    let container = pre.parentElement.querySelector('.log-container');
-    if (!container) {
-      container = document.createElement('div');
-      container.className = 'log-container';
-      pre.parentElement.insertBefore(container, pre);
-      container.appendChild(pre);
+    const originalContent = originalContents.get(pre);
+    if (!originalContent) {
+      originalContents.set(pre, pre.innerHTML);
     }
-    
-    // Get original content
-    let content = originalContents.get(pre);
-    if (!content) {
-      content = pre.textContent;
-      originalContents.set(pre, content);
-    }
-    
-    // Process lines
-    const lines = content.split('\n');
-    const processedLines = lines
+
+    // Split content into lines, filter and format them
+    const lines = (originalContent || pre.innerHTML).split('\n');
+    const filteredLines = lines
       .map(line => {
-        // Skip empty lines
-        if (!line.trim()) return line;
-        
-        // Format and possibly exclude the line
-        const formattedLine = formatLogLine(line, highlightPattern, excludePatterns);
-        if (formattedLine === null) return null; // Skip excluded lines
-        
-        // Handle debug logs
-        if (line.includes('[DEBUG]') && !showDebug) return null;
-        
-        return formattedLine || line;
+        // Skip DEBUG lines if debug is disabled
+        if (!showDebug && line.includes('[DEBUG]')) {
+          return '';
+        }
+        return formatLogLine(line, highlightPattern, excludePatterns);
       })
-      .filter(line => line !== null) // Remove excluded lines
+      .filter(line => line !== '') // Remove empty lines
       .join('\n');
+
+    pre.innerHTML = filteredLines;
     
-    pre.innerHTML = processedLines;
+    // Apply dark mode styles
+    addStyles(darkMode);
+  });
+}
+
+function restoreOriginalContent() {
+  document.querySelectorAll('pre').forEach(pre => {
+    const originalContent = originalContents.get(pre);
+    if (originalContent) {
+      pre.innerHTML = originalContent;
+    }
   });
 }
 
 // Listen for messages from popup
-browserAPI.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   console.debug('[LogFilter] Received message from popup:', request);
+  
+  if (!request.enabled) {
+    restoreOriginalContent();
+    return;
+  }
+
   applyLogFilters(
     request.showDebug,
     request.darkMode,
@@ -182,8 +185,14 @@ browserAPI.runtime.onMessage.addListener(function(request, sender, sendResponse)
 // Initial filter application
 console.debug('[LogFilter] Loading initial filter settings');
 try {
-  browserAPI.storage.local.get(['showDebug', 'darkMode', 'highlightPattern', 'excludePatterns'], function(result) {
+  chrome.storage.local.get(['enabled', 'showDebug', 'darkMode', 'highlightPattern', 'excludePatterns'], function(result) {
     console.debug('[LogFilter] Initial settings loaded:', result);
+    
+    // Don't apply filters if extension is disabled
+    if (result.enabled === false) {
+      return;
+    }
+
     // Default to dark mode if not set
     const darkMode = result.darkMode === undefined ? true : result.darkMode;
     applyLogFilters(

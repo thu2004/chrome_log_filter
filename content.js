@@ -1,10 +1,10 @@
 // Store original content for each pre element
 const originalContents = new WeakMap();
-const DEFAULT_HIGHLIGHT_PATTERN = '------------------------ live log';
 const ERROR_PATTERN = 'ERROR';
 const PASS_PATTERN = 'PASS';
 const WARNING_SUMMARY_PATTERN = 'warnings summary';
 const DEFAULT_EXCLUDE_PATTERNS = '[comm_libs.';
+const DEFAULT_GREEN_HIGHLIGHT = '--- live log';
 
 // CSS styles for log formatting
 const logStyles = {
@@ -19,7 +19,7 @@ const logStyles = {
   error: 'color: #dc3545; font-weight: bold;',
   warning: 'color: #ffc107;',
   pass: 'color: #28a745; font-weight: bold;',
-  highlight: 'color: #0dcaf0;',
+  greenHighlight: 'color: #28a745;',
   path: 'color: #888;',
   darkMode: {
     background: '#1e1e1e',
@@ -74,7 +74,7 @@ function formatCodePath(path) {
   return path;
 }
 
-function formatLogLine(line, pattern, excludePatterns, isDarkMode) {
+function formatLogLine(line, excludePatterns, isDarkMode, greenPatterns = '') {
   // Skip empty lines
   if (!line.trim()) {
     return '';
@@ -95,36 +95,40 @@ function formatLogLine(line, pattern, excludePatterns, isDarkMode) {
   let isSpecialLine = false;
 
   // Check for special lines first
-  if (line.includes(ERROR_PATTERN)) {
+  if (line.includes(ERROR_PATTERN) && !line.includes('NO_ERROR')) {
     formattedLine = `<span style="${logStyles.error}">${line}</span>`;
     isSpecialLine = true;
   } else if (line.includes(PASS_PATTERN)) {
     formattedLine = `<span style="${logStyles.pass}">${line}</span>`;
     isSpecialLine = true;
-  } else if (line.includes(WARNING_SUMMARY_PATTERN)) {
+  } else if (line.toLowerCase().includes(WARNING_SUMMARY_PATTERN.toLowerCase())) {
     formattedLine = `<span style="${logStyles.warning}">${line}</span>`;
     isSpecialLine = true;
-  } else if (pattern && line.includes(pattern)) {
-    formattedLine = `<span style="${logStyles.highlight}">${line}</span>`;
-    isSpecialLine = true;
+  } else if (greenPatterns) {
+    // Check for green highlight patterns
+    const patterns = greenPatterns.split(',').map(p => p.trim()).filter(p => p);
+    if (patterns.some(p => line.includes(p))) {
+      formattedLine = `<span style="${logStyles.greenHighlight}">${line}</span>`;
+      isSpecialLine = true;
+    }
   }
 
-  // If not a special line, format each component
+  // If not a special line, format the components
   if (!isSpecialLine) {
     formattedLine = parts.map(part => {
-      if (!part) return '';
-      if (part.match(/\[\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}\]/)) {
+      if (part.match(/^\[\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3}\]$/)) {
         return formatTimestamp(part);
-      } else if (part.match(/\[\d+\]/)) {
+      } else if (part.match(/^\[\d+\]$/)) {
         return formatLogId(part);
-      } else if (part.match(/\[(?:DEBUG|ERROR|WARNING|INFO)\]/)) {
+      } else if (part.match(/^\[(?:DEBUG|ERROR|WARNING|INFO)\]$/)) {
         return formatLogLevel(part, isDarkMode);
-      } else if (part.match(/\[[\w\.\:]+\]/)) {
+      } else if (part.match(/^\[[\w\.\:]+\]$/)) {
         return formatCodePath(part);
       }
       return part;
     }).join('');
   }
+
   return `<div class="log-line">${formattedLine}</div>`;
 }
 
@@ -172,33 +176,39 @@ function initializeLogContainers() {
   });
 }
 
-function applyLogFilters(showDebug, darkMode, highlightPattern = DEFAULT_HIGHLIGHT_PATTERN, excludePatterns = DEFAULT_EXCLUDE_PATTERNS) {
-  console.debug('[LogFilter] Applying filters - debug:', showDebug, 'dark:', darkMode, 'pattern:', highlightPattern);
-  
-  document.querySelectorAll('pre').forEach(pre => {
-    const originalContent = originalContents.get(pre);
-    if (!originalContent) {
-      originalContents.set(pre, pre.innerHTML);
-    }
+function applyLogFilters(showDebug, darkMode, excludePatterns = DEFAULT_EXCLUDE_PATTERNS, greenHighlightPatterns = DEFAULT_GREEN_HIGHLIGHT) {
+  console.debug('[LogFilter] Applying filters - showDebug:', showDebug, 
+    'darkMode:', darkMode,
+    'excludePatterns:', excludePatterns,
+    'greenHighlightPatterns:', greenHighlightPatterns);
 
-    // Split content into lines, filter and format them
-    const lines = (originalContent || pre.innerHTML).split('\n');
-    const filteredLines = lines
+  // Add dark mode styles
+  addStyles(darkMode);
+
+  // Get all pre elements
+  const preElements = document.getElementsByTagName('pre');
+  for (const pre of preElements) {
+    // Get original content
+    let content = originalContents.get(pre) || pre.innerHTML;
+    originalContents.set(pre, content);
+
+    // Split content into lines
+    const lines = content.split('\n');
+
+    // Format each line
+    const formattedLines = lines
       .map(line => {
-        // Skip DEBUG lines if debug is disabled
+        // Skip debug lines if not showing debug
         if (!showDebug && line.includes('[DEBUG]')) {
           return '';
         }
-        return formatLogLine(line, highlightPattern, excludePatterns, darkMode);
+        return formatLogLine(line, excludePatterns, darkMode, greenHighlightPatterns);
       })
-      .filter(line => line !== '') // Remove empty lines
-      .join('\n');
+      .filter(line => line); // Remove empty lines
 
-    pre.innerHTML = filteredLines;
-    
-    // Apply dark mode styles
-    addStyles(darkMode);
-  });
+    // Update content
+    pre.innerHTML = formattedLines.join('\n');
+  }
 }
 
 function restoreOriginalContent() {
@@ -214,47 +224,50 @@ function restoreOriginalContent() {
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   console.debug('[LogFilter] Received message from popup:', request);
   
-  if (!request.enabled) {
-    restoreOriginalContent();
-    return;
+  if (request.type === 'applyFilters') {
+    if (!request.enabled) {
+      restoreOriginalContent();
+    } else {
+      applyLogFilters(
+        request.showDebug, 
+        request.darkMode, 
+        request.excludePatterns,
+        request.greenHighlightPatterns
+      );
+    }
+    sendResponse({status: 'success'});
+    return true; // Keep the message channel open for the async response
   }
-
-  applyLogFilters(
-    request.showDebug,
-    request.darkMode,
-    request.highlightPattern || DEFAULT_HIGHLIGHT_PATTERN,
-    request.excludePatterns || DEFAULT_EXCLUDE_PATTERNS
-  );
-  sendResponse({ success: true }); // Acknowledge receipt
-  return true; // Keep the message channel open for async response
 });
 
 // Initial filter application
 console.debug('[LogFilter] Loading initial filter settings');
 try {
-  chrome.storage.local.get(['enabled', 'showDebug', 'darkMode', 'highlightPattern', 'excludePatterns'], function(result) {
+  chrome.storage.local.get(['enabled', 'showDebug', 'darkMode', 'excludePatterns', 'greenHighlightPatterns'], function(result) {
     console.debug('[LogFilter] Initial settings loaded:', result);
     
     // Don't apply filters if extension is disabled
     if (result.enabled === false) {
+      console.debug('[LogFilter] Extension is disabled, not applying filters');
       return;
     }
 
     // Default to dark mode if not set
     const darkMode = result.darkMode === undefined ? true : result.darkMode;
+    
+    console.debug('[LogFilter] Applying initial filters');
     applyLogFilters(
       result.showDebug !== false,
       darkMode,
-      result.highlightPattern || DEFAULT_HIGHLIGHT_PATTERN,
-      result.excludePatterns || DEFAULT_EXCLUDE_PATTERNS
+      result.excludePatterns || DEFAULT_EXCLUDE_PATTERNS,
+      result.greenHighlightPatterns || DEFAULT_GREEN_HIGHLIGHT
     );
   });
 } catch (error) {
-  console.debug('[LogFilter] Error loading initial settings:', error);
+  console.error('[LogFilter] Error loading initial settings:', error);
   // Apply default settings if storage access fails
-  applyLogFilters(true, true, DEFAULT_HIGHLIGHT_PATTERN, DEFAULT_EXCLUDE_PATTERNS);
+  applyLogFilters(true, true, DEFAULT_EXCLUDE_PATTERNS, DEFAULT_GREEN_HIGHLIGHT);
 }
 
-// Initialize when the content script loads
-console.debug('[LogFilter] Content script initialized');
+// Initialize log containers
 initializeLogContainers();

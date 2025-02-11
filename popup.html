@@ -4,50 +4,60 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="filter-option">
-    <input type="checkbox" id="enableExtension" checked>
-    <label for="enableExtension">Enable Log Filter</label>
-  </div>
-  
-  <div id="settingsContainer">
-    <div class="separator"></div>
-    <div class="section-title">Debug Logs</div>
-    <div class="filter-option">
-      <input type="checkbox" id="debugFilter">
-      <label for="debugFilter">Show DEBUG logs</label>
-    </div>
-    <div class="filter-option">
-      <input type="checkbox" id="autoToggleDebug">
-      <label for="autoToggleDebug">Auto-toggle debug logs on open</label>
+  <div class="container">
+    <div class="section">
+      <div class="checkbox-option">
+        <input type="checkbox" id="enableExtension" checked>
+        <label for="enableExtension">Enable Log Filter</label>
+      </div>
     </div>
 
-    <div class="separator"></div>
-    <div class="section-title">Highlighting</div>
-    <div class="filter-option">
-      <label for="highlightPattern">Highlight lines containing:</label>
-    </div>
-    <div class="filter-option">
-      <input type="text" id="highlightPattern" placeholder="e.g. ------------------------ live log">
-      <div class="info-text">Note: ERROR logs are always highlighted in red</div>
-    </div>
+    <div id="settingsContainer">
+      <div class="section">
+        <div class="section-title">Debug Logs</div>
+        <div class="checkbox-option">
+          <input type="checkbox" id="debugFilter">
+          <label for="debugFilter">Show DEBUG logs</label>
+        </div>
+        <div class="checkbox-option">
+          <input type="checkbox" id="autoToggleDebug">
+          <label for="autoToggleDebug">Auto-toggle debug logs on open</label>
+        </div>
+      </div>
 
-    <div class="separator"></div>
-    <div class="section-title">Filtering</div>
-    <div class="filter-option">
-      <label for="excludePatterns">Exclude patterns (comma-separated):</label>
-    </div>
-    <div class="filter-option">
-      <input type="text" id="excludePatterns" placeholder="e.g. [comm_libs,pattern2">
-    </div>
+      <div class="separator"></div>
 
-    <div class="separator"></div>
-    <div class="section-title">Appearance</div>
-    <div class="theme-toggle">
-      <span>Dark Mode</span>
-      <label class="switch">
-        <input type="checkbox" id="themeToggle">
-        <span class="slider"></span>
-      </label>
+      <div class="section">
+        <div class="section-title">Highlighting</div>
+        <div class="input-field">
+          <label for="greenHighlightPatterns">Green highlight patterns (comma-separated)</label>
+          <input type="text" id="greenHighlightPatterns" placeholder="e.g. --- live log">
+          <div class="info-text">Lines containing these patterns will be highlighted in green</div>
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="section">
+        <div class="section-title">Filtering</div>
+        <div class="input-field">
+          <label for="excludePatterns">Exclude patterns (comma-separated)</label>
+          <input type="text" id="excludePatterns" placeholder="e.g. [comm_libs,pattern2">
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="section">
+        <div class="section-title">Appearance</div>
+        <div class="theme-toggle">
+          <span>Dark Mode</span>
+          <label class="switch">
+            <input type="checkbox" id="themeToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
     </div>
   </div>
   <script src="browser-polyfill.js"></script>

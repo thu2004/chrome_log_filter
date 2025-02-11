@@ -4,13 +4,13 @@ document.addEventListener('DOMContentLoaded', function() {
   const settingsContainer = document.getElementById('settingsContainer');
   const debugFilter = document.getElementById('debugFilter');
   const themeToggle = document.getElementById('themeToggle');
-  const highlightPattern = document.getElementById('highlightPattern');
   const excludePatterns = document.getElementById('excludePatterns');
   const autoToggleDebug = document.getElementById('autoToggleDebug');
+  const greenHighlightPatterns = document.getElementById('greenHighlightPatterns');
 
   // Load saved states
   console.debug('[LogFilter] Loading saved filter states');
-  chrome.storage.local.get(['enabled', 'showDebug', 'darkMode', 'highlightPattern', 'excludePatterns', 'autoToggleDebug'], function(result) {
+  chrome.storage.local.get(['enabled', 'showDebug', 'darkMode', 'excludePatterns', 'autoToggleDebug', 'greenHighlightPatterns'], function(result) {
     console.debug('[LogFilter] Loaded states:', result);
     
     // Set enabled state (default to true)
@@ -27,11 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set theme
     themeToggle.checked = result.darkMode === undefined ? true : result.darkMode;
-    
-    // Set pattern
-    if (result.highlightPattern) {
-      highlightPattern.value = result.highlightPattern;
-    }
 
     // Set exclude patterns
     if (result.excludePatterns) {
@@ -40,10 +35,19 @@ document.addEventListener('DOMContentLoaded', function() {
       excludePatterns.value = '[comm_libs.';
       chrome.storage.local.set({ excludePatterns: '[comm_libs.' });
     }
+
+    // Set green highlight patterns
+    if (result.greenHighlightPatterns) {
+      greenHighlightPatterns.value = result.greenHighlightPatterns;
+    } else {
+      greenHighlightPatterns.value = '--- live log';
+      chrome.storage.local.set({ greenHighlightPatterns: '--- live log' });
+    }
     
     console.debug('[LogFilter] Applied states - enabled:', isEnabled, 'debug:', debugFilter.checked, 
-      'darkMode:', themeToggle.checked, 'pattern:', highlightPattern.value, 
-      'excludePatterns:', excludePatterns.value, 'autoToggleDebug:', autoToggleDebug.checked);
+      'darkMode:', themeToggle.checked, 
+      'excludePatterns:', excludePatterns.value, 'autoToggleDebug:', autoToggleDebug.checked,
+      'greenHighlightPatterns:', greenHighlightPatterns.value);
     
     // Set initial dark mode if not set
     if (result.darkMode === undefined) {
@@ -94,9 +98,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  highlightPattern.addEventListener('input', function() {
-    console.debug('[LogFilter] Pattern changed:', highlightPattern.value);
-    chrome.storage.local.set({ highlightPattern: highlightPattern.value }, function() {
+  greenHighlightPatterns.addEventListener('input', function() {
+    console.debug('[LogFilter] Green highlight patterns changed:', greenHighlightPatterns.value);
+    chrome.storage.local.set({ greenHighlightPatterns: greenHighlightPatterns.value }, function() {
       applyFilters();
     });
   });
@@ -113,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // If extension is disabled, send message to remove all filtering
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, { enabled: false });
+          chrome.tabs.sendMessage(tabs[0].id, { type: 'applyFilters', enabled: false });
         }
       });
       return;
@@ -122,19 +126,19 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'applyFilters',
           enabled: true,
           showDebug: debugFilter.checked,
           darkMode: themeToggle.checked,
-          highlightPattern: highlightPattern.value,
-          excludePatterns: excludePatterns.value
+          excludePatterns: excludePatterns.value,
+          greenHighlightPatterns: greenHighlightPatterns.value
         });
       }
     });
   }
 
   function updateIcon() {
-    chrome.browserAction.setIcon({
-      path: enableExtension.checked ? 'icon-enabled.png' : 'icon-disabled.png'
-    });
+    const iconPath = enableExtension.checked ? 'icons/icon-48.png' : 'icons/icon-disabled-48.png';
+    chrome.action.setIcon({ path: iconPath });
   }
 });
